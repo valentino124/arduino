@@ -1,0 +1,55 @@
+// Definición de pines según tu diagrama
+const int RELAY_PIN = 5;      // Salida hacia el pin 's' del relé
+const int SENSOR_INPUT = 4;   // Entrada del sensor (conecta a GND al activarse)
+const int BUTTON_INPUT = 6;   // Entrada del botón (conecta a GND al presionarse)
+
+// Variables para el temporizador de retención (30 segundos)
+unsigned long tiempoInicio = 0;
+const unsigned long TIEMPO_ESPERA = 30000; // 30,000 ms = 30 segundos
+bool temporizadorActivo = false;
+
+void setup() {
+  // Inicializamos el puerto serie para depuración
+  Serial.begin(115200);
+
+  // Configuración de pin de salida
+  pinMode(RELAY_PIN, OUTPUT);
+
+  // Configuración de pines de entrada con resistencia pull-up interna
+  pinMode(SENSOR_INPUT, INPUT_PULLUP);
+  pinMode(BUTTON_INPUT, INPUT_PULLUP);
+
+  // Estado inicial del relé apagado
+  digitalWrite(RELAY_PIN, LOW);       
+
+  Serial.println("Sistema iniciado correctamente.");
+}
+
+void loop() {
+  // Leemos el estado de las entradas (al ir a GND por el INPUT_PULLUP, su valor activo es LOW)
+  int estadoSensor = digitalRead(SENSOR_INPUT);
+  int estadoBoton = digitalRead(BUTTON_INPUT);
+
+  // Condición estricta: EL BOTÓN Y EL SENSOR deben estar activos (LOW) al mismo tiempo
+  if (estadoBoton == LOW && estadoSensor == HIGH) {
+    if (digitalRead(RELAY_PIN) == LOW) {
+      Serial.println("¡Botón y sensor activos! Encendiendo ESP32 mediante el relé...");
+      digitalWrite(RELAY_PIN, HIGH); // Encendemos la cámara
+    }
+    
+    // Reiniciamos el cronómetro de los 30 segundos mientras se mantenga la condición
+    tiempoInicio = millis(); 
+    temporizadorActivo = true;
+  } 
+
+  // Si el temporizador está activo, evaluamos si ya pasaron los 30 segundos
+  if (temporizadorActivo) {
+    if (millis() - tiempoInicio >= TIEMPO_ESPERA) {
+      Serial.println("Tiempo de gracia cumplido. Apagando ESP32...");
+      digitalWrite(RELAY_PIN, LOW);  // Abre el relé (Apaga ESP32)
+      temporizadorActivo = false;    // Desactivamos el cronómetro
+    }
+  }
+
+  delay(50); // Pequeña pausa para estabilidad
+}
